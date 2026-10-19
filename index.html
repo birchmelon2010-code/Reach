@@ -1,21 +1,3 @@
-Attachment index.html added.None selected 
-
-Skip to content
-Using Gmail with screen readers
-in:sent 
-6 of 86
-(no subject)
-
-Jason Cervantes <cervantesjason2010@gmail.com>
-Attachments
-Wed, Oct 14, 10:00 PM (5 days ago)
-to Jaysenandrew060809@gmail.com
-
-
- One attachment
-  •  Scanned by Gmail
-index.html
-100%
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
 <title>REACH</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -345,7 +327,7 @@ const dist2 = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 // Legend
 //  walls:   #  wall   ~ glass   | bars
 //  locks:   B boards (crowbar)  K keycard door  P power door  V valve door  H hack door  Z lift doors
-//  floor:   .  floor  s safe room  S safe room doorway (open, no door)  z lift floor  < entry  = crawlspace
+//  floor:   .  floor  s safe room  S safe room door (jammed open)  z lift floor  < entry  = crawlspace
 //           w  water  ; plastic curtain  : debris  % scratches/stains  @ spawn  M creature vent
 //  items:   c crowbar  k keycard  f fuse  n note
 //  devices: F breaker  G generator panel  u lift call  v valve  (stand on the cell, device on the wall)
@@ -3079,18 +3061,11 @@ function buildPartition(B, L, gx, gz, kind, th, ceil) {
   const ry = alongX ? 0 : Math.PI / 2;
   const f = frame(gx + 0.5, gz + 0.5, ry);
   if (kind === 'glass') {
-    // 1 m thick wall below and above the window (matches the normal walls), thin pane set in the middle
-    f.box(B, mat(th.lo), 0, 0.475, 0, 1, 0.95, 1, 0, TEX_M);
-    f.box(B, mat(th.hi), 0, (ceil + 2.25) / 2, 0, 1, ceil - 2.25, 1, 0, TEX_M);
+    f.box(B, mat(th.lo), 0, 0.475, 0, 1, 0.95, 0.3, 0, TEX_M);
+    f.box(B, mat(th.hi), 0, (ceil + 2.25) / 2, 0, 1, ceil - 2.25, 0.3, 0, TEX_M);
     f.cbox(B, mat('steelDark'), 0, 0.97, 0, 1, 0.05, 0.34, 0.01);
     f.cbox(B, mat('steelDark'), 0, 2.23, 0, 1, 0.05, 0.34, 0.01);
     f.cbox(B, mat('steelDark'), 0.48, 1.6, 0, 0.05, 1.26, 0.1, 0.01);
-    // close the window slot where the run of glass stops (doorway or wall): a full-depth jamb on that end, so you never see into the open slot
-    // (local +x is world +x when the wall runs along x, and world -z when it runs along z)
-    for (const sgn of [-1, 1]) {
-      const endKind = alongX ? cellKind(L, gx + sgn, gz) : cellKind(L, gx, gz - sgn);
-      if (endKind !== 'glass') f.box(B, mat(th.hi), sgn * 0.45, 1.6, 0, 0.1, 1.3, 1, 0, TEX_M);
-    }
     f.box(B, mat('steel', { transparent: true, opacity: 0.12, rough: 0.05, metal: 0.1, ws: { ao: 0, grime: 0, wet: 0 } }), 0, 1.6, 0, 0.96, 1.26, 0.02);
     // dirt and a crack on some panes
     const r = mulberry32(gx * 31 + gz * 17);
@@ -3098,7 +3073,7 @@ function buildPartition(B, L, gx, gz, kind, th, ceil) {
   } else {
     f.cbox(B, mat('steelDark'), 0, 0.06, 0, 1, 0.12, 0.16, 0.015);
     f.cbox(B, mat('steelDark'), 0, 2.32, 0, 1, 0.14, 0.16, 0.015);
-    if (ceil > 2.4) f.box(B, mat(th.hi), 0, (ceil + 2.38) / 2, 0, 1, ceil - 2.38, 1, 0, TEX_M); // 1 m thick header like the normal walls
+    if (ceil > 2.4) f.box(B, mat(th.hi), 0, (ceil + 2.38) / 2, 0, 1, ceil - 2.38, 0.3, 0, TEX_M);
     const r = mulberry32(gx * 13 + gz * 7);
     for (let x = -0.44; x <= 0.45; x += 0.11) f.cyl(B, mat(r() < 0.3 ? 'rust' : 'steel'), x, 1.2, 0, 0.026, 0.026, 2.3, 10);
     f.cbox(B, mat('steelDark'), 0, 1.25, 0, 1, 0.06, 0.12, 0.01);
@@ -3554,7 +3529,12 @@ function buildNote(note) {
 function buildSafeDoor(L, s) {
   const ry = Math.atan2(s.dir.x, s.dir.z);
   const g = new THREE.Group(); g.position.set(s.door.x, 0, s.door.z); g.rotation.y = ry;
-  // no door leaf any more: the shelter doorway stays open (frame, lintel and green lamp remain)
+  const hinge = new THREE.Group(); hinge.position.set(-0.47, 0, 0);
+  const door = new THREE.Mesh(boxGeo(0.94, 2.2, 0.1), mat('metal', { color: 0x4f5a52 }));
+  door.position.set(0.47, 1.1, 0); door.castShadow = true; hinge.add(door);
+  const wheel = new THREE.Mesh(torusGeo(0.14, 0.02, 6, 16), mat('steel')); wheel.position.set(0.7, 1.15, 0.07); hinge.add(wheel);
+  hinge.rotation.y = 1.05; // jammed: open just wide enough to squeeze through
+  g.add(hinge);
   const lamp = new THREE.Mesh(boxGeo(0.25, 0.08, 0.06), new THREE.MeshBasicMaterial({ color: 0x3cff7a }));
   lamp.position.set(0, 2.38, -0.52); g.add(lamp);
   World.areas[s.area].group.add(g);
@@ -4728,8 +4708,7 @@ function dressDoorways(L, batches) {
     const openN = (dz) => [-1, 1].filter((s) => wallAlongX ? isOpenCell(L, gx + s, gz + dz) : isOpenCell(L, gx + dz, gz + s)).length;
     const roomSide = openN(-1) >= openN(1) ? -1 : 1;
     const leafy = ['office', 'lab', 'cold', 'contain', 'server'].includes(theme);
-    const isShelterDoor = L.ch[gz * L.W + gx] === 'S'; // shelters never get a door leaf
-    if (leafy && !isShelterDoor && rnd() < 0.85) {
+    if (leafy && rnd() < 0.85) {
       // a door leaf swung open against the wall on the room side
       const col = { office: 0x8a6a4a, lab: 0xd8dcd8, cold: 0xb8c4cc, contain: 0x5a6066, server: 0x6a7076 }[theme];
       const leafM = theme === 'office' ? mat('wood', { color: 0xb08a68 }) : mat('metal', { color: col });
@@ -9132,4 +9111,3 @@ boot1();
 })();
 </script>
 </body></html>
-Displaying index.html. 
